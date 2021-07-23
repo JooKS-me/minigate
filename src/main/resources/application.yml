@@ -1,0 +1,10 @@
+minigate:
+  server:
+    port: 13307
+    bossCore: 2
+    workerCore: 4
+  target:
+    url: http://43.132.254.117/#/login?redirect=%2Fdashboard
+
+
+
