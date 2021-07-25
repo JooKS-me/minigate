@@ -2,7 +2,7 @@ package com.jooks.minigate.outbound.http;
 
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
-import com.jooks.minigate.filter.HeaderHttpRequestFilter;
+import com.jooks.minigate.filter.LoggingHttpRequestFilter;
 import com.jooks.minigate.router.HttpEndpointRouter;
 import com.jooks.minigate.router.RandomHttpEndpointRouter;
 import com.jooks.minigate.router.RouterRegistry;
@@ -104,8 +104,8 @@ public class NettyHttpClient {
                 newRequest = parsePostBody(request, newRequest).finalizeRequest();
             }
 
-            // filer过滤
-            new HeaderHttpRequestFilter().filter(newRequest, ctx);
+            // 打下日志
+            new LoggingHttpRequestFilter().filter(newRequest);
 
             f.channel().writeAndFlush(newRequest);
             f.channel().closeFuture().sync();

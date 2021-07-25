@@ -1,6 +1,6 @@
 package com.jooks.minigate.outbound.http;
 
-import com.jooks.minigate.filter.HeaderHttpResponseFilter;
+import com.jooks.minigate.filter.LoggingHttpResponseFilter;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
 import io.netty.handler.codec.http.DefaultFullHttpResponse;
@@ -22,7 +22,8 @@ public class NettyHttpClientOutboundHandler extends SimpleChannelInboundHandler<
         DefaultFullHttpResponse newResponse = new DefaultFullHttpResponse(fullHttpResponse.protocolVersion(), fullHttpResponse.status(), fullHttpResponse.content().copy());
         newResponse.headers().set(fullHttpResponse.headers());
 
-        new HeaderHttpResponseFilter().filter(fullHttpResponse);
+        // 打下日志
+        new LoggingHttpResponseFilter().filter(fullHttpResponse);
 
         parentCtx.writeAndFlush(newResponse);
         ctx.close();
