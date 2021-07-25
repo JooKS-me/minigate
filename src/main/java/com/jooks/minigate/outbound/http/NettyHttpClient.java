@@ -5,6 +5,7 @@ import com.google.gson.reflect.TypeToken;
 import com.jooks.minigate.filter.LoggingHttpRequestFilter;
 import com.jooks.minigate.router.HttpEndpointRouter;
 import com.jooks.minigate.router.RandomHttpEndpointRouter;
+import com.jooks.minigate.router.RoundRobinHttpEndpointRouter;
 import com.jooks.minigate.router.RouterRegistry;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.ChannelFuture;
@@ -46,10 +47,17 @@ import java.util.Map;
  */
 @Slf4j
 public class NettyHttpClient {
-
-    private final HttpEndpointRouter router = new RandomHttpEndpointRouter();
-
-    public void handle(final FullHttpRequest request, final ChannelHandlerContext ctx) throws Exception {
+    public void handle(final FullHttpRequest request, final ChannelHandlerContext ctx, String balance) throws Exception {
+        HttpEndpointRouter router = new RandomHttpEndpointRouter();
+        if (balance.contains("robin")) {
+            router = new RoundRobinHttpEndpointRouter();
+        } else if (balance.contains("random")) {
+            router = new RandomHttpEndpointRouter();
+        } else {
+            log.error("不支持该负载均衡算法");
+            ctx.close();
+            return;
+        }
         EventLoopGroup workerGroup = new NioEventLoopGroup();
         List<String> urls = RouterRegistry.getInstance().get(new URI(request.uri()).getPath());
         // 若路由注册中心没有配置url，则不再继续
@@ -61,7 +69,7 @@ public class NettyHttpClient {
             return;
         }
         // 通过路由得到一个要请求的url
-        String url = router.routeByRoundRobin(urls);
+        String url = router.route(urls);
         URI uri = new URI(url);
         try {
             Bootstrap b = new Bootstrap();

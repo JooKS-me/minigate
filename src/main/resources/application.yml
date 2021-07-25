@@ -1,3 +1,4 @@
 minigate:
   server:
     port: 13307
+  balance: robin #支持random和robin

@@ -2,12 +2,13 @@ package com.jooks.minigate.inbound;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelOption;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.HttpServerCodec;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import lombok.Data;
@@ -19,8 +20,11 @@ public class HttpInboundServer {
 
     private int port;
 
-    public HttpInboundServer(int port) {
-        this.port=port;
+    private String balance;
+
+    public HttpInboundServer(int port, String balance) {
+        this.port = port;
+        this.balance = balance;
     }
 
     public void run() throws Exception {
@@ -41,7 +45,15 @@ public class HttpInboundServer {
 
             b.group(bossGroup, workerGroup).channel(NioServerSocketChannel.class)
                     .handler(new LoggingHandler(LogLevel.DEBUG))
-                    .childHandler(new HttpInboundInitializer());
+                    .childHandler(new ChannelInitializer<SocketChannel>(){
+                        @Override
+                        protected void initChannel(SocketChannel ch) throws Exception {
+                            ChannelPipeline p = ch.pipeline();
+                            p.addLast(new HttpServerCodec());
+                            p.addLast(new HttpObjectAggregator(1024 * 1024));
+                            p.addLast(new HttpInboundHandler(balance));
+                        }
+                    });
 
             Channel ch = b.bind(port).sync().channel();
             log.info("Mini Gate started at http://localhost:" + port + "/");

@@ -4,7 +4,5 @@ import java.util.List;
 
 public interface HttpEndpointRouter {
     
-    String routeByRandom(List<String> endpoints);
-
-    String routeByRoundRobin(List<String> urls);
+    String route(List<String> endpoints);
 }
