@@ -19,6 +19,9 @@ public class MinigateApplication implements ApplicationRunner {
     @Value("${minigate.balance:random}")
     private String balance;
 
+    @Value("${minigate.jwt.secret}")
+    private String secret;
+
     public static void main(String[] args) {
         SpringApplication.run(MinigateApplication.class, args);
     }
@@ -28,7 +31,7 @@ public class MinigateApplication implements ApplicationRunner {
         RouterRegistry.getInstance().setup();
 
         log.info("Mini Gate is starting...");
-        HttpInboundServer server = new HttpInboundServer(proxyPort, balance);
+        HttpInboundServer server = new HttpInboundServer(proxyPort, balance, secret);
         try {
             server.run();
         }catch (Exception ex){

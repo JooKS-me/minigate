@@ -3,7 +3,6 @@ package com.jooks.minigate.inbound;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.*;
-import io.netty.channel.epoll.EpollChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
@@ -18,13 +17,19 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class HttpInboundServer {
 
+    // 网关运行端口
     private int port;
 
+    // 负载均衡算法名称
     private String balance;
 
-    public HttpInboundServer(int port, String balance) {
+    // JWT密钥
+    private String secret;
+
+    public HttpInboundServer(int port, String balance, String secret) {
         this.port = port;
         this.balance = balance;
+        this.secret = secret;
     }
 
     public void run() throws Exception {
@@ -51,7 +56,7 @@ public class HttpInboundServer {
                             ChannelPipeline p = ch.pipeline();
                             p.addLast(new HttpServerCodec());
                             p.addLast(new HttpObjectAggregator(1024 * 1024));
-                            p.addLast(new HttpInboundHandler(balance));
+                            p.addLast(new HttpInboundHandler(balance, secret));
                         }
                     });
 

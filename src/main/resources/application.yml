@@ -2,3 +2,5 @@ minigate:
   server:
     port: 13307
   balance: robin #支持random和robin
+  jwt: #需要jwt验证的uri在jwt.json中指定
+    secret: dsaca546cdsv #jwt密钥，token需要放在header中，且键值为'token'
