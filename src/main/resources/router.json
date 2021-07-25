@@ -1,0 +1,9 @@
+{
+  "/test1": [
+    "http://localhost:8080/test",
+    "http://localhost:8081/test"
+  ],
+  "/test2": [
+    "http://www.baicu.com/"
+  ]
+}

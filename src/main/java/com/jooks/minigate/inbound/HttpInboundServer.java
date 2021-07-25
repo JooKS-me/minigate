@@ -13,24 +13,19 @@ import io.netty.handler.logging.LoggingHandler;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.List;
-
 @Data
 @Slf4j
 public class HttpInboundServer {
 
     private int port;
-    
-    private List<String> proxyServers;
 
-    public HttpInboundServer(int port, List<String> proxyServers) {
+    public HttpInboundServer(int port) {
         this.port=port;
-        this.proxyServers = proxyServers;
     }
 
     public void run() throws Exception {
-        EventLoopGroup bossGroup = new NioEventLoopGroup(1);
-        EventLoopGroup workerGroup = new NioEventLoopGroup(16);
+        EventLoopGroup bossGroup = new NioEventLoopGroup(2);
+        EventLoopGroup workerGroup = new NioEventLoopGroup(4);
 
         try {
             ServerBootstrap b = new ServerBootstrap();
@@ -46,7 +41,7 @@ public class HttpInboundServer {
 
             b.group(bossGroup, workerGroup).channel(NioServerSocketChannel.class)
                     .handler(new LoggingHandler(LogLevel.DEBUG))
-                    .childHandler(new HttpInboundInitializer(this.proxyServers));
+                    .childHandler(new HttpInboundInitializer());
 
             Channel ch = b.bind(port).sync().channel();
             log.info("Mini Gate started at http://localhost:" + port + "/");

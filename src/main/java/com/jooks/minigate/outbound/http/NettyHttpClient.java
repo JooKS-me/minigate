@@ -3,16 +3,37 @@ package com.jooks.minigate.outbound.http;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.jooks.minigate.filter.HeaderHttpRequestFilter;
-import com.jooks.minigate.filter.HttpRequestFilter;
 import com.jooks.minigate.router.HttpEndpointRouter;
 import com.jooks.minigate.router.RandomHttpEndpointRouter;
+import com.jooks.minigate.router.RouterRegistry;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.*;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInitializer;
+import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.http.*;
-import io.netty.handler.codec.http.multipart.*;
+import io.netty.handler.codec.http.FullHttpRequest;
+import io.netty.handler.codec.http.HttpClientCodec;
+import io.netty.handler.codec.http.HttpContentDecompressor;
+import io.netty.handler.codec.http.HttpObjectAggregator;
+import io.netty.handler.codec.http.QueryStringEncoder;
+import io.netty.handler.codec.http.QueryStringDecoder;
+import io.netty.handler.codec.http.HttpRequest;
+import io.netty.handler.codec.http.DefaultFullHttpRequest;
+import io.netty.handler.codec.http.HttpHeaderNames;
+import io.netty.handler.codec.http.HttpHeaderValues;
+import io.netty.handler.codec.http.HttpMethod;
+import io.netty.handler.codec.http.HttpResponse;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.HttpResponseStatus;
+import io.netty.handler.codec.http.multipart.DefaultHttpDataFactory;
+import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder;
+import io.netty.handler.codec.http.multipart.HttpPostRequestEncoder;
+import io.netty.handler.codec.http.multipart.InterfaceHttpData;
+import io.netty.handler.codec.http.multipart.MemoryAttribute;
+import lombok.extern.slf4j.Slf4j;
 
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
@@ -20,20 +41,27 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * 基于Netty实现的HTTP请求客户端
+ */
+@Slf4j
 public class NettyHttpClient {
-
-    private final List<String> proxyServers;
 
     private final HttpEndpointRouter router = new RandomHttpEndpointRouter();
 
-    public NettyHttpClient(List<String> proxyServers) {
-        this.proxyServers = proxyServers;
-    }
-
-    public void handle(final FullHttpRequest request, final ChannelHandlerContext ctx, HttpRequestFilter filter) throws Exception {
+    public void handle(final FullHttpRequest request, final ChannelHandlerContext ctx) throws Exception {
         EventLoopGroup workerGroup = new NioEventLoopGroup();
-        // 经过路由得到一个目标url
-        String url = router.route(proxyServers);
+        List<String> urls = RouterRegistry.getInstance().get(new URI(request.uri()).getPath());
+        // 若路由注册中心没有配置url，则不再继续
+        if (urls == null) {
+            HttpResponse response = new DefaultFullHttpResponse(request.protocolVersion(), HttpResponseStatus.NOT_FOUND);
+            response.headers().set("Connection", "close");
+            ctx.writeAndFlush(response);
+            ctx.close();
+            return;
+        }
+        // 通过路由得到一个要请求的url
+        String url = router.route(urls);
         URI uri = new URI(url);
         try {
             Bootstrap b = new Bootstrap();
@@ -76,7 +104,9 @@ public class NettyHttpClient {
                 newRequest = parsePostBody(request, newRequest).finalizeRequest();
             }
 
+            // filer过滤
             new HeaderHttpRequestFilter().filter(newRequest, ctx);
+
             f.channel().writeAndFlush(newRequest);
             f.channel().closeFuture().sync();
         } finally {

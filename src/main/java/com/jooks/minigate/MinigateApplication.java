@@ -1,13 +1,12 @@
 package com.jooks.minigate;
 
 import com.jooks.minigate.inbound.HttpInboundServer;
+import com.jooks.minigate.router.RouterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-
-import java.util.Arrays;
 
 @SpringBootApplication
 @Slf4j
@@ -19,13 +18,11 @@ public class MinigateApplication implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
-        String proxyPort = System.getProperty("proxyPort","8888");
+        int proxyPort = Integer.parseInt(args.getSourceArgs()[0] == null ? "8888" : args.getSourceArgs()[0]);
+        RouterRegistry.getInstance().setup();
 
-        String proxyServers = System.getProperty("proxyServer","http://localhost:8080/test");
-
-        int port = Integer.parseInt(proxyPort);
         log.info("Mini Gate is starting...");
-        HttpInboundServer server = new HttpInboundServer(port, Arrays.asList(proxyServers.split(",")));
+        HttpInboundServer server = new HttpInboundServer(proxyPort);
         try {
             server.run();
         }catch (Exception ex){

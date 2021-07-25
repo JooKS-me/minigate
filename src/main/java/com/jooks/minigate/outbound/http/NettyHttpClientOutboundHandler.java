@@ -3,7 +3,9 @@ package com.jooks.minigate.outbound.http;
 import com.jooks.minigate.filter.HeaderHttpResponseFilter;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.SimpleChannelInboundHandler;
-import io.netty.handler.codec.http.*;
+import io.netty.handler.codec.http.DefaultFullHttpResponse;
+import io.netty.handler.codec.http.FullHttpResponse;
+import io.netty.handler.codec.http.HttpObject;
 
 public class NettyHttpClientOutboundHandler extends SimpleChannelInboundHandler<HttpObject> {
 
@@ -11,11 +13,6 @@ public class NettyHttpClientOutboundHandler extends SimpleChannelInboundHandler<
 
     public NettyHttpClientOutboundHandler(final ChannelHandlerContext ctx) {
         this.parentCtx = ctx;
-    }
-
-    @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-//        System.out.println("已与 " + ctx.channel().remoteAddress() + " 建立连接");
     }
 
     @Override
@@ -29,5 +26,6 @@ public class NettyHttpClientOutboundHandler extends SimpleChannelInboundHandler<
 
         parentCtx.writeAndFlush(newResponse);
         ctx.close();
+        parentCtx.close();
     }
 }
