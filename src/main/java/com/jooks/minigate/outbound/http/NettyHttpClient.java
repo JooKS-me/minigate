@@ -61,7 +61,7 @@ public class NettyHttpClient {
             return;
         }
         // 通过路由得到一个要请求的url
-        String url = router.routeByRandom(urls);
+        String url = router.routeByRoundRobin(urls);
         URI uri = new URI(url);
         try {
             Bootstrap b = new Bootstrap();
