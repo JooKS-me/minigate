@@ -57,6 +57,7 @@ public class HttpInboundHandler extends ChannelInboundHandlerAdapter {
             }
 
             // 处理请求
+            // TODO 待优化
             handler.handle(fullRequest, ctx, balance);
         } catch(Exception e) {
             e.printStackTrace();
