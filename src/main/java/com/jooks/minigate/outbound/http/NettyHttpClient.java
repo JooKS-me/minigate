@@ -9,10 +9,7 @@ import com.jooks.minigate.router.RandomHttpEndpointRouter;
 import com.jooks.minigate.router.RoundRobinHttpEndpointRouter;
 import com.jooks.minigate.router.RouterRegistry;
 import io.netty.bootstrap.Bootstrap;
-import io.netty.channel.ChannelFuture;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelInitializer;
-import io.netty.channel.EventLoopGroup;
+import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
@@ -51,7 +48,7 @@ public class NettyHttpClient {
 
     HttpEndpointRouter router;
 
-    private static final EventLoopGroup clientGroup = new NioEventLoopGroup(new ThreadFactoryBuilder().setNameFormat("client work-%d").build());
+    private static final EventLoopGroup clientGroup = new NioEventLoopGroup(14, new ThreadFactoryBuilder().setNameFormat("client work-%d").build());
 
     public void handle(final FullHttpRequest request, final ChannelHandlerContext ctx, String balance) throws Exception {
          if (router == null) {
@@ -85,11 +82,12 @@ public class NettyHttpClient {
             b.handler(new ChannelInitializer<SocketChannel>() {
                 @Override
                 public void initChannel(SocketChannel ch) throws Exception {
-                    ch.pipeline().addLast(new HttpClientCodec());
-                    ch.pipeline().addLast(new HttpContentDecompressor());
+                    ChannelPipeline pipeline = ch.pipeline();
+                    pipeline.addLast(new HttpClientCodec());
+                    pipeline.addLast(new HttpContentDecompressor());
                     // HttpObjectAggregator是为了避免收到HttpContent
-                    ch.pipeline().addLast(new HttpObjectAggregator(1024 * 1024));
-                    ch.pipeline().addLast(new NettyHttpClientOutboundHandler(ctx));
+                    pipeline.addLast(new HttpObjectAggregator(1024 * 1024));
+                    pipeline.addLast(new NettyHttpClientOutboundHandler(ctx));
                 }
             });
 

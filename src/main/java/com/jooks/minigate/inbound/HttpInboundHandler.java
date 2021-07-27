@@ -17,7 +17,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 public class HttpInboundHandler extends ChannelInboundHandlerAdapter {
 
-    private static final ThreadPoolExecutor EXECUTORS = (ThreadPoolExecutor) Executors.newFixedThreadPool(8);
+    private static final ThreadPoolExecutor EXECUTORS = (ThreadPoolExecutor) Executors.newFixedThreadPool(14);
 
     private final NettyHttpClient handler;
 
