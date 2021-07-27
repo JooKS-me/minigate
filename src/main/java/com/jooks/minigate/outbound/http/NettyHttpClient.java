@@ -1,5 +1,6 @@
 package com.jooks.minigate.outbound.http;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import com.jooks.minigate.filter.LoggingHttpRequestFilter;
@@ -47,18 +48,24 @@ import java.util.Map;
  */
 @Slf4j
 public class NettyHttpClient {
+
+    HttpEndpointRouter router;
+
+    private static final EventLoopGroup clientGroup = new NioEventLoopGroup(new ThreadFactoryBuilder().setNameFormat("client work-%d").build());
+
     public void handle(final FullHttpRequest request, final ChannelHandlerContext ctx, String balance) throws Exception {
-        HttpEndpointRouter router = new RandomHttpEndpointRouter();
-        if (balance.contains("robin")) {
-            router = new RoundRobinHttpEndpointRouter();
-        } else if (balance.contains("random")) {
-            router = new RandomHttpEndpointRouter();
-        } else {
-            log.error("不支持该负载均衡算法");
-            ctx.close();
-            return;
-        }
-        EventLoopGroup workerGroup = new NioEventLoopGroup();
+         if (router == null) {
+             if (balance.contains("robin")) {
+                 router = new RoundRobinHttpEndpointRouter();
+             } else if (balance.contains("random")) {
+                 router = new RandomHttpEndpointRouter();
+             } else {
+                 log.error("不支持该负载均衡算法");
+                 ctx.close();
+                 return;
+             }
+         }
+
         List<String> urls = RouterRegistry.getInstance().get(new URI(request.uri()).getPath());
         // 若路由注册中心没有配置url，则不再继续
         if (urls == null) {
@@ -71,9 +78,9 @@ public class NettyHttpClient {
         // 通过路由得到一个要请求的url
         String url = router.route(urls);
         URI uri = new URI(url);
-        try {
+
             Bootstrap b = new Bootstrap();
-            b.group(workerGroup);
+            b.group(clientGroup);
             b.channel(NioSocketChannel.class);
             b.handler(new ChannelInitializer<SocketChannel>() {
                 @Override
@@ -117,9 +124,6 @@ public class NettyHttpClient {
 
             f.channel().writeAndFlush(newRequest);
             f.channel().closeFuture().sync();
-        } finally {
-            workerGroup.shutdownGracefully();
-        }
     }
 
     /**
@@ -148,8 +152,7 @@ public class NettyHttpClient {
         } else if (contentType.contains("json")) {
             // json格式的处理
             Gson gson = new Gson();
-            String json = oldRequest.content().toString(StandardCharsets.UTF_8);
-            paramMap = gson.fromJson(json ,new TypeToken<Map<String,String>>() {}.getType());
+            paramMap = gson.fromJson(oldRequest.content().toString(StandardCharsets.UTF_8),new TypeToken<Map<String,String>>() {}.getType());
         }
 
         // 将解析到的参数再次编码

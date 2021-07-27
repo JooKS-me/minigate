@@ -8,11 +8,16 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.codec.http.*;
 import io.netty.util.ReferenceCountUtil;
+
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
 
 public class HttpInboundHandler extends ChannelInboundHandlerAdapter {
+
+    private static final ThreadPoolExecutor EXECUTORS = (ThreadPoolExecutor) Executors.newFixedThreadPool(8);
 
     private final NettyHttpClient handler;
 
@@ -56,9 +61,18 @@ public class HttpInboundHandler extends ChannelInboundHandlerAdapter {
                 }
             }
 
+            fullRequest.content().retain(1);
             // 处理请求
-            // TODO 待优化
-            handler.handle(fullRequest, ctx, balance);
+            EXECUTORS.execute(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        handler.handle(fullRequest, ctx, balance);
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+            });
         } catch(Exception e) {
             e.printStackTrace();
         } finally {

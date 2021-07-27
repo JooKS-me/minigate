@@ -33,16 +33,16 @@ end
 Running 30s test @ http://localhost:8080/test
   1 threads and 20 connections
   Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency     2.00ms   11.36ms 228.27ms   98.16%
-    Req/Sec    20.71k     2.64k   28.74k    82.21%
+    Latency     2.27ms   14.25ms 270.24ms   99.21%
+    Req/Sec    20.25k     2.30k   25.93k    75.17%
   Latency Distribution
-     50%  830.00us
-     75%    0.98ms
-     90%    1.18ms
-     99%   21.59ms
-  616316 requests in 30.01s, 87.10MB read
-Requests/sec:  20535.33
-Transfer/sec:      2.90MB
+     50%  833.00us
+     75%    0.99ms
+     90%    1.26ms
+     99%   11.28ms
+  603123 requests in 30.10s, 85.24MB read
+Requests/sec:  20038.45
+Transfer/sec:      2.83MB
 ```
 
 然后使用网关，开启轮询负载均衡策略，不配置jwt过滤，进行压测，` wrk -t1 -c20 -d30s --latency -s Desktop/test.lua http://localhost:13307/test1 `，得到如下结果：
@@ -62,4 +62,38 @@ Requests/sec:     57.07
 Transfer/sec:      8.58KB
 ```
 发现性能非常辣鸡。。。
-TODO：性能优化
+
+然后在调用netty发起http请求那里使用线程池，再进行压测，` wrk -t1 -c20 -d30s --latency -s Desktop/test.lua http://localhost:13307/test1 `，得到结果如下：
+```
+Running 30s test @ http://localhost:13307/test1
+  1 threads and 20 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency    40.07ms   84.30ms 733.96ms   93.03%
+    Req/Sec   831.94    498.15     1.94k    63.92%
+  Latency Distribution
+     50%   15.61ms
+     75%   23.99ms
+     90%   71.64ms
+     99%  468.45ms
+  8202 requests in 30.10s, 1.20MB read
+Requests/sec:    272.48
+Transfer/sec:     40.98KB
+```
+依旧辣鸡。。。
+
+然后在netty发起http请求那里的NioEventLoopGroup加入ThreadFactory，然后把eventLoopGroup设置为静态，使其可以复用；再把前面的线程池核心数调整为8，再次进行压测：
+```
+Running 30s test @ http://localhost:13307/test1
+  1 threads and 20 connections
+  Thread Stats   Avg      Stdev     Max   +/- Stdev
+    Latency     8.20ms   39.34ms 606.79ms   98.80%
+    Req/Sec     3.38k     1.50k    5.15k    62.50%
+  Latency Distribution
+     50%    3.92ms
+     75%    5.31ms
+     90%    7.65ms
+     99%   93.15ms
+  8243 requests in 30.04s, 1.21MB read
+Requests/sec:    274.39
+Transfer/sec:     41.27KB
+```
