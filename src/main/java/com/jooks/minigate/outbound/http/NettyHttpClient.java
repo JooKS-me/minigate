@@ -51,17 +51,17 @@ public class NettyHttpClient {
     private static final EventLoopGroup clientGroup = new NioEventLoopGroup(14, new ThreadFactoryBuilder().setNameFormat("client work-%d").build());
 
     public void handle(final FullHttpRequest request, final ChannelHandlerContext ctx, String balance) throws Exception {
-         if (router == null) {
-             if (balance.contains("robin")) {
-                 router = new RoundRobinHttpEndpointRouter();
-             } else if (balance.contains("random")) {
-                 router = new RandomHttpEndpointRouter();
-             } else {
-                 log.error("不支持该负载均衡算法");
-                 ctx.close();
-                 return;
-             }
-         }
+        if (router == null) {
+            if (balance.contains("robin")) {
+                router = new RoundRobinHttpEndpointRouter();
+            } else if (balance.contains("random")) {
+                router = new RandomHttpEndpointRouter();
+            } else {
+                log.error("不支持该负载均衡算法");
+                ctx.close();
+                return;
+            }
+        }
 
         List<String> urls = RouterRegistry.getInstance().get(new URI(request.uri()).getPath());
         // 若路由注册中心没有配置url，则不再继续
@@ -76,56 +76,57 @@ public class NettyHttpClient {
         String url = router.route(urls);
         URI uri = new URI(url);
 
-            Bootstrap b = new Bootstrap();
-            b.group(clientGroup);
-            b.channel(NioSocketChannel.class);
-            b.handler(new ChannelInitializer<SocketChannel>() {
-                @Override
-                public void initChannel(SocketChannel ch) throws Exception {
-                    ChannelPipeline pipeline = ch.pipeline();
-                    pipeline.addLast(new HttpClientCodec());
-                    pipeline.addLast(new HttpContentDecompressor());
-                    // HttpObjectAggregator是为了避免收到HttpContent
-                    pipeline.addLast(new HttpObjectAggregator(1024 * 1024));
-                    pipeline.addLast(new NettyHttpClientOutboundHandler(ctx));
-                }
-            });
-
-            // 开启客户端
-            ChannelFuture f = b.connect(uri.getHost(), uri.getPort()).sync();
-
-            // 解析路径，生成目标uri
-            QueryStringEncoder getEncoder = new QueryStringEncoder(url);
-            QueryStringDecoder oldDecoder = new QueryStringDecoder(request.uri());
-            oldDecoder.parameters().forEach((key, value) -> {
-                getEncoder.addParam(key, value.get(0));
-            });
-            URI targetUri = new URI(getEncoder.toString());
-
-            // 产生一个新的request，用来请求被代理的服务
-            HttpRequest newRequest = new DefaultFullHttpRequest(
-                    request.protocolVersion(), request.method(), targetUri.getRawPath() + "?" + targetUri.getQuery());
-
-            // 添加基本的Header
-            newRequest.headers().set(HttpHeaderNames.HOST, uri.getHost());
-            newRequest.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
-            newRequest.headers().set(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.GZIP);
-
-            // 如果发来的是POST请求，则需要先解析请求体，并加到新的request中
-            if (request.method() == HttpMethod.POST) {
-                // 给新的request加上请求体
-                newRequest = parsePostBody(request, newRequest).finalizeRequest();
+        Bootstrap b = new Bootstrap();
+        b.group(clientGroup);
+        b.channel(NioSocketChannel.class);
+        b.handler(new ChannelInitializer<SocketChannel>() {
+            @Override
+            public void initChannel(SocketChannel ch) throws Exception {
+                ChannelPipeline pipeline = ch.pipeline();
+                pipeline.addLast(new HttpClientCodec());
+                pipeline.addLast(new HttpContentDecompressor());
+                // HttpObjectAggregator是为了避免收到HttpContent
+                pipeline.addLast(new HttpObjectAggregator(1024 * 1024));
+                pipeline.addLast(new NettyHttpClientOutboundHandler(ctx));
             }
+        });
 
-            // 打下日志
-            new LoggingHttpRequestFilter().filter(newRequest);
+        // 开启客户端
+        ChannelFuture f = b.connect(uri.getHost(), uri.getPort()).sync();
 
-            f.channel().writeAndFlush(newRequest);
-            f.channel().closeFuture().sync();
+        // 解析路径，生成目标uri
+        QueryStringEncoder getEncoder = new QueryStringEncoder(url);
+        QueryStringDecoder oldDecoder = new QueryStringDecoder(request.uri());
+        oldDecoder.parameters().forEach((key, value) -> {
+            getEncoder.addParam(key, value.get(0));
+        });
+        URI targetUri = new URI(getEncoder.toString());
+
+        // 产生一个新的request，用来请求被代理的服务
+        HttpRequest newRequest = new DefaultFullHttpRequest(
+                request.protocolVersion(), request.method(), targetUri.getRawPath() + "?" + targetUri.getQuery());
+
+        // 添加基本的Header
+        newRequest.headers().set(HttpHeaderNames.HOST, uri.getHost());
+        newRequest.headers().set(HttpHeaderNames.CONNECTION, HttpHeaderValues.CLOSE);
+        newRequest.headers().set(HttpHeaderNames.ACCEPT_ENCODING, HttpHeaderValues.GZIP);
+
+        // 如果发来的是POST请求，则需要先解析请求体，并加到新的request中
+        if (request.method() == HttpMethod.POST) {
+            // 给新的request加上请求体
+            newRequest = parsePostBody(request, newRequest).finalizeRequest();
+        }
+
+        // 打下日志
+        new LoggingHttpRequestFilter().filter(newRequest);
+
+        f.channel().writeAndFlush(newRequest);
+        f.channel().closeFuture().sync();
     }
 
     /**
      * 将旧的POST请求中的请求体，迁移到新的POST请求中
+     *
      * @param oldRequest 旧请求
      * @param newRequest 新请求
      * @return HttpPostRequestEncoder
@@ -150,7 +151,8 @@ public class NettyHttpClient {
         } else if (contentType.contains("json")) {
             // json格式的处理
             Gson gson = new Gson();
-            paramMap = gson.fromJson(oldRequest.content().toString(StandardCharsets.UTF_8),new TypeToken<Map<String,String>>() {}.getType());
+            paramMap = gson.fromJson(oldRequest.content().toString(StandardCharsets.UTF_8), new TypeToken<Map<String, String>>() {
+            }.getType());
         }
 
         // 将解析到的参数再次编码
